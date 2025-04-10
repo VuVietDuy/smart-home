@@ -1,105 +1,109 @@
-import {
-  DirectionsWalk,
-  LightbulbOutlined,
-  LocalFireDepartmentOutlined,
-  OpacityOutlined,
-} from "@mui/icons-material";
-import { Badge, Table, Tag } from "antd";
+import { useQuery } from "@tanstack/react-query";
+import { Input, Select, Spin, Table, Tag } from "antd";
+import { useState } from "react";
+import fetcher from "../api/fetcher";
 
-const initialData = [
-  {
-    id: 1,
-    device: "Đèn phòng khách",
-    location: "LivingRoom",
-    status: "on",
-    time: "2024-02-06 08:30:00",
-  },
-  {
-    id: 2,
-    device: "Quạt trần",
-    location: "LivingRoom",
-    status: "off",
-    time: "2024-02-06 08:45:00",
-  },
-  {
-    id: 3,
-    device: "Máy lạnh",
-    location: "BedRoom",
-    status: "on",
-    time: "2024-02-06 09:00:00",
-  },
-  {
-    id: 5,
-    device: "Máy lạnh",
-    location: "BedRoom",
-    status: "off",
-    time: "2024-02-06 09:00:00",
-  },
-  {
-    id: 4,
-    device: "Cửa chính",
-    location: "Garage",
-    status: "off",
-    time: "2024-02-06 09:15:00",
-  },
-];
+const { Search } = Input;
 
 export default function History() {
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
+  const [key, setKey] = useState("");
+  const [searchBy, setSearchBy] = useState("time");
+  const { data: deviceHistory, isLoading } = useQuery({
+    queryKey: ["GET_DEVICE_HISTORY", page, limit],
+    queryFn: () =>
+      fetcher
+        .get("devices/history", {
+          params: {
+            page: page,
+            limit: limit,
+            searchBy: searchBy,
+            key: key,
+          },
+        })
+        .then((res) => res.data),
+    refetchInterval: 2000,
+  });
   const columns = [
+    {
+      title: "ID",
+      dataIndex: "id",
+      key: "id",
+    },
     {
       title: "Thiết bị",
       dataIndex: "device",
       key: "device",
-      render: (text: any, record: any) => (
-        <span>
-          {record.type === "temperature" ? (
-            <LocalFireDepartmentOutlined />
-          ) : null}
-          {record.type === "light" ? <LightbulbOutlined /> : null}
-          {record.type === "humidity" ? <OpacityOutlined /> : null}
-          {record.type === "motion" ? <DirectionsWalk /> : null} {text}
-        </span>
-      ),
+      render: (_: any, record: any) => <span>{record.Device.name}</span>,
     },
     {
       title: "Vị trí",
       dataIndex: "location",
       key: "location",
-      render: (text: any) => (
-        <>
-          {text === "LivingRoom" && "Phòng khách"}
-          {text === "BedRoom" && "Phòng ngủ"}
-          {text === "BathRoom" && "Phòng tắm"}
-          {text === "Garage" && "Nhà xe"}
-        </>
-      ),
+      render: (_: any, record: any) => <>{record.Device.position}</>,
     },
     {
       title: "Giá trị",
       dataIndex: "status",
       key: "status",
       render: (value: any, record: any) => (
-        <Tag color={record.status === "off" ? "red" : "blue"}>
-          {value === "off" ? "Tắt" : "Bật"}
+        <Tag color={record.status === 0 ? "red" : "blue"}>
+          {value === 0 ? "Tắt" : "Bật"}
         </Tag>
       ),
     },
     {
       title: "Thời gian",
-      dataIndex: "time",
-      key: "time",
+      dataIndex: "createdAt",
+      key: "createdAt",
     },
   ];
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center mt-6">
+        <Spin size="large"></Spin>
+      </div>
+    );
+  }
+
   return (
     <div className="m-6 p-6 rounded-lg bg-white">
       <div className="flex gap-4 mb-2">
-        <input
-          type="search"
-          className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-56 p-2.5"
+        <Search
           placeholder="Tìm kiếm"
+          allowClear
+          size="large"
+          style={{ width: 300 }}
+          onSearch={(e) => setKey(e)}
+          onChange={(e) => setKey(e.target.value)}
         />
+        <Select
+          onChange={(e) => setSearchBy(e)}
+          className="w-56 h-full"
+          size="large"
+          defaultValue={searchBy}
+        >
+          <Select.Option value="time">Tìm kiếm theo thời gian</Select.Option>
+          {/* <Select.Option value="name">Tìm kiếm theo tên</Select.Option> */}
+        </Select>
       </div>
-      <Table columns={columns} dataSource={initialData}></Table>
+      <Table
+        columns={columns}
+        dataSource={deviceHistory.data}
+        pagination={{
+          showSizeChanger: true,
+          pageSize: deviceHistory.limit,
+          current: deviceHistory.page,
+          total: deviceHistory.total,
+          pageSizeOptions: ["5", "10", "20", "30"],
+          onChange(page, pageSize) {
+            setPage(page);
+            setLimit(pageSize);
+          },
+        }}
+      ></Table>
     </div>
   );
 }

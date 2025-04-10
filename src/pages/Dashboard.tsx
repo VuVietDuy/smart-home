@@ -1,44 +1,68 @@
 import { AccountCircle, Notifications, Search } from "@mui/icons-material";
-import { Avatar } from "antd";
+import { Avatar, Dropdown, Spin } from "antd";
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import LineChart from "../components/LineChart";
-import LivingRoom from "./Rooms/LivingRoom";
-import BathRoom from "./Rooms/BathRoom";
-import BedRoom from "./Rooms/BedRoom";
-import Garage from "./Rooms/Garage";
+import RoomSwitches from "../components/RoomSwitches";
+import fetcher from "../api/fetcher";
 
-const humidityData = [28, 41, 23, 30, 30, 27];
-const temperatureData = [12, 15, 16, 19, 25, 23];
-const lightData = [42, 55, 46, 59, 55, 63];
+type RoomType = "Phòng khách" | "Phòng ngủ" | "Phòng tắm" | "Nhà xe";
 
 export default function Dashboard() {
-  const [room, setRoom] = useState("LivingRoom");
-  const [data, setData] = useState({
-    labels: ["T2", "T3", "T4", "T5", "T6", "T7"],
+  const [room, setRoom] = useState<RoomType>("Phòng khách");
+  const navigate = useNavigate();
+  const { data: devices, isLoading: isLoadingDevices } = useQuery({
+    queryKey: ["GET_DEVICES"],
+    queryFn: () => fetcher.get("devices").then((res) => res.data),
+    refetchInterval: 2000,
+  });
+
+  const { data: dashboard, isLoading: isLoadingDashboard } = useQuery({
+    queryKey: ["GET_DASHBOARD"],
+    queryFn: () => fetcher.get("sensor-data/dashboard").then((res) => res.data),
+    refetchInterval: 2000,
+  });
+
+  const { data: currentSensorData, isLoading: isLoadingCurrentSensorData } =
+    useQuery({
+      queryKey: ["GET_CURRENT_SENSOR_DATA"],
+      queryFn: () => fetcher.get("sensor-data/current").then((res) => res.data),
+      refetchInterval: 2000,
+    });
+
+  const data = {
+    labels:
+      dashboard &&
+      dashboard.map((item: any) => {
+        const date = new Date(item.createdAt);
+        return `${date.getHours()}:${date.getMinutes()}:${date.getSeconds()}`;
+      }),
     datasets: [
       {
-        label: "Nhiệt độ (*C)",
-        data: temperatureData,
+        label: "Nhiệt độ (°C)",
+        data: dashboard && dashboard.map((item: any) => item.temperature),
         backgroundColor: ["red"],
         borderColor: "red",
         borderWidth: 2,
       },
       {
         label: "Độ ẩm (%)",
-        data: humidityData,
+        data: dashboard && dashboard.map((item: any) => item.humidity),
         backgroundColor: ["blue"],
         borderColor: "blue",
         borderWidth: 2,
       },
       {
-        label: "Ánh sáng (%)",
-        data: lightData,
+        label: "Ánh sáng (lux)",
+        data: dashboard && dashboard.map((item: any) => item.light),
         backgroundColor: ["yellow"],
         borderColor: "yellow",
         borderWidth: 2,
       },
     ],
-  });
+  };
+
   return (
     <div>
       <header className="mx-4 mt-4 flex justify-between">
@@ -50,47 +74,87 @@ export default function Dashboard() {
           <button className="bg-white rounded p-3 mr-3">
             <Notifications />
           </button>
-          <Avatar icon={<AccountCircle />} size={"large"} />
+          <Dropdown
+            menu={{
+              items: [
+                {
+                  key: "1",
+                  label: "Chủ nhà",
+                  onClick: () => navigate("/profile"),
+                },
+                {
+                  key: "2",
+                  label: "Cài đặt",
+                  onClick: () => navigate("/setting"),
+                },
+                {
+                  key: "3",
+                  label: "Đăng xuất",
+                  onClick: () => navigate("/login"),
+                },
+              ],
+            }}
+          >
+            <Avatar
+              className="cursor-pointer"
+              icon={<AccountCircle />}
+              size={"large"}
+            />
+          </Dropdown>
         </div>
       </header>
       <div className="grid grid-cols-3 gap-4 m-4">
         <div className="col-span-2">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-            <div className="col-span-1">
-              <div className="rounded-lg bg-white px-8 py-6">
-                <p className="text-center font-medium mb-1">Nhiệt độ phòng</p>
-                <p className="text-3xl font-semibold text-blue-600 text-center">
-                  23*C
-                </p>
+          {isLoadingCurrentSensorData ? (
+            <div className="flex justify-center mt-6">
+              <Spin size="large"></Spin>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+              <div className="col-span-1">
+                <div className="rounded-lg bg-white px-8 py-6">
+                  <p className="text-center font-medium mb-1">Nhiệt độ phòng</p>
+                  <p className="text-3xl font-semibold text-blue-600 text-center">
+                    {Math.round(currentSensorData.temperature)}°C
+                  </p>
+                </div>
+              </div>
+              <div className="col-span-1">
+                <div className="rounded-lg bg-white px-8 py-6">
+                  <p className="text-center font-medium mb-1">
+                    Nhiệt độ ngoài trời
+                  </p>
+                  <p className="text-3xl font-semibold text-blue-600 text-center">
+                    {Math.round(currentSensorData.temperature)}°C
+                  </p>
+                </div>
+              </div>
+              <div className="col-span-1">
+                <div className="rounded-lg bg-white px-8 py-6">
+                  <p className="text-center font-medium mb-1">Độ ẩm</p>
+                  <p className="text-3xl font-semibold text-blue-600 text-center">
+                    {currentSensorData.humidity}%
+                  </p>
+                </div>
+              </div>
+              <div className="col-span-1">
+                <div className="rounded-lg bg-white px-8 py-6">
+                  <p className="text-center font-medium mb-1">Ánh sáng</p>
+                  <p className="text-3xl font-semibold text-blue-600 text-center">
+                    {Math.round(currentSensorData.light)} lux
+                  </p>
+                </div>
               </div>
             </div>
-            <div className="col-span-1">
-              <div className="rounded-lg bg-white px-8 py-6">
-                <p className="text-center font-medium mb-1">Nhiệt độ phòng</p>
-                <p className="text-3xl font-semibold text-blue-600 text-center">
-                  30*C
-                </p>
-              </div>
-            </div>
-            <div className="col-span-1">
-              <div className="rounded-lg bg-white px-8 py-6">
-                <p className="text-center font-medium mb-1">Nhiệt ngoài trời</p>
-                <p className="text-3xl font-semibold text-blue-600 text-center">
-                  23*C
-                </p>
-              </div>
-            </div>
-            <div className="col-span-1">
-              <div className="rounded-lg bg-white px-8 py-6">
-                <p className="text-center font-medium mb-1">Độ ẩm</p>
-                <p className="text-3xl font-semibold text-blue-600 text-center">
-                  70%
-                </p>
-              </div>
-            </div>
-          </div>
+          )}
           <div className="bg-white rounded-lg p-4">
-            <LineChart chartData={data} />
+            {isLoadingDashboard ? (
+              <div className="flex justify-center mt-6">
+                <Spin size="large"></Spin>
+              </div>
+            ) : (
+              <LineChart chartData={data} />
+            )}
           </div>
         </div>
         <div className="col-span-1">
@@ -98,9 +162,9 @@ export default function Dashboard() {
             <ul className="flex flex-wrap text-sm font-medium text-center text-gray-500 border-b border-gray-300 mb-4">
               <li className="me-2">
                 <span
-                  onClick={() => setRoom("LivingRoom")}
+                  onClick={() => setRoom("Phòng khách")}
                   className={`inline-block p-4 rounded-t-lg  hover:cursor-pointer ${
-                    room === "LivingRoom"
+                    room === "Phòng khách"
                       ? "text-blue-600 bg-gray-200"
                       : "hover:text-gray-600 hover:bg-gray-100"
                   }`}
@@ -110,9 +174,9 @@ export default function Dashboard() {
               </li>
               <li className="me-2">
                 <span
-                  onClick={() => setRoom("BedRoom")}
+                  onClick={() => setRoom("Phòng ngủ")}
                   className={`inline-block p-4 rounded-t-lg  hover:cursor-pointer ${
-                    room === "BedRoom"
+                    room === "Phòng ngủ"
                       ? "text-blue-600 bg-gray-200"
                       : "hover:text-gray-600 hover:bg-gray-100"
                   }`}
@@ -122,9 +186,9 @@ export default function Dashboard() {
               </li>
               <li className="me-2">
                 <span
-                  onClick={() => setRoom("BathRoom")}
+                  onClick={() => setRoom("Phòng tắm")}
                   className={`inline-block p-4 rounded-t-lg  hover:cursor-pointer ${
-                    room === "BathRoom"
+                    room === "Phòng tắm"
                       ? "text-blue-600 bg-gray-200"
                       : "hover:text-gray-600 hover:bg-gray-100"
                   }`}
@@ -134,9 +198,9 @@ export default function Dashboard() {
               </li>
               <li className="me-2">
                 <span
-                  onClick={() => setRoom("Garage")}
+                  onClick={() => setRoom("Nhà xe")}
                   className={`inline-block p-4 rounded-t-lg  hover:cursor-pointer ${
-                    room === "Garage"
+                    room === "Nhà xe"
                       ? "text-blue-600 bg-gray-200"
                       : "hover:text-gray-600 hover:bg-gray-100"
                   }`}
@@ -146,11 +210,17 @@ export default function Dashboard() {
               </li>
             </ul>
           </div>
-
-          {room === "LivingRoom" && <LivingRoom />}
-          {room === "BathRoom" && <BathRoom />}
-          {room === "BedRoom" && <BedRoom />}
-          {room === "Garage" && <Garage />}
+          {isLoadingDevices ? (
+            <div className="flex justify-center mt-6">
+              <Spin size="large"></Spin>
+            </div>
+          ) : (
+            <RoomSwitches
+              devices={devices.filter(
+                (device: any) => device.position === room
+              )}
+            />
+          )}
         </div>
       </div>
     </div>

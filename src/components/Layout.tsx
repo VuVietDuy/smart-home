@@ -1,13 +1,22 @@
 import { Layout as AntLayout, Menu } from "antd";
-import { useState } from "react";
-import { Link, Outlet } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link, Outlet, useNavigate } from "react-router-dom";
 import DashboardIcon from "@mui/icons-material/Dashboard";
-const { Header, Content, Footer, Sider } = AntLayout;
 import SettingsIcon from "@mui/icons-material/Settings";
-import { AccountBox, DataArray, History } from "@mui/icons-material";
+import { AccountBox, DataArray, Devices, History } from "@mui/icons-material";
+
+const { Content, Sider } = AntLayout;
 
 export default function Layout() {
   const [collapsed, setCollapsed] = useState(false);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const accessToken = localStorage.getItem("accessToken");
+    if (!accessToken) {
+      navigate("/login");
+    }
+  }, []);
 
   return (
     <div>
@@ -28,6 +37,9 @@ export default function Layout() {
             </Menu.Item>
             <Menu.Item key="sensor" icon={<DataArray />}>
               <Link to="/sensor">Dữ liệu cảm biến</Link>
+            </Menu.Item>
+            <Menu.Item key="device" icon={<Devices />}>
+              <Link to="/device">Thiết bị</Link>
             </Menu.Item>
             <Menu.Item key="profile" icon={<AccountBox />}>
               <Link to="/profile">Chủ nhà</Link>
